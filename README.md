@@ -27,6 +27,12 @@ git clone https://github.com/Meisoftcoltd/ComfyUI-Hermes-Listener.git
 También disponible via **ComfyUI Manager** → Install Custom Nodes → buscar
 *Hermes Listener*.
 
+## Base del proyecto
+
+Este listener se basa en el diseño de **[artokun/comfyui-mcp](https://github.com/artokun/comfyui-mcp)** (el MCP server para ComfyUI que expone 108+ herramientas para ejecutar workflows, gestionar modelos, controlar VRAM y explorar nodos desde asistentes de IA).
+
+Adaptamos su arquitectura para integrarlo como nodo invisible (zero-overhead) dentro de ComfyUI, capturando eventos nativos de ejecución y escribiendo señales locales para despertar agentes externos como Hermes.
+
 ## Configuración en UI
 
 1. Abrir el panel de ajuste de ComfyUI (botón ⚙️ Settings).
