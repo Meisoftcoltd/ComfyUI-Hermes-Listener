@@ -33,6 +33,99 @@ Este listener se basa en el diseño de **[artokun/comfyui-mcp](https://github.co
 
 Adaptamos su arquitectura para integrarlo como nodo invisible (zero-overhead) dentro de ComfyUI, capturando eventos nativos de ejecución y escribiendo señales locales para despertar agentes externos como Hermes.
 
+## Instalación y uso con Hermes
+
+### Para agentes Hermes (instalación automática)
+
+Cuando un agente Hermes detecta este repositorio, puede instalarlo automáticamente:
+
+1. **Clonar el repositorio** en la carpeta de custom nodes de ComfyUI:
+   ```bash
+   cd /path/to/ComfyUI/custom_nodes
+   git clone https://github.com/Meisoftcoltd/ComfyUI-Hermes-Listener.git
+   ```
+
+2. **Reiniciar ComfyUI** para que se cargue el listener automáticamente.
+
+3. **Verificar la instalación**:
+   - En la UI de ComfyUI (⚙️ Settings) debe aparecer la sección *"Hermes Event Listener"*
+   - O bien consultar la API: `GET http://127.0.0.1:8189/comfy_hermes/status`
+
+### Flujo de trabajo con agente Hermes
+
+Una vez instalado, el agente puede:
+
+1. **Enviar un prompt** a ComfyUI (vía MCP, REST API o n8n):
+   ```json
+   POST /prompt
+   { "prompt": { ...workflow_json... } }
+   ```
+
+2. **Ejecutar en segundo plano** — el agente entra en reposo (cero tokens) mientras ComfyUI genera.
+
+3. **Recibir la señal** cuando termine:
+   - **Opción A (recomendado)**: Leer el archivo `signal_hermes.json`:
+     ```json
+     {
+       "estado": "fin",
+       "timestamp": "2025-07-21T10:35:12+00:00",
+       "prompt_id": "abc-def-ghi",
+       "comfy_event": "executing",
+       "vram_before_gb": 18.4,
+       "vram_after_gb": 1.2,
+       "vram_freed_gb": 17.2
+     }
+     ```
+   - **Opción B (webhook)**: Configurar `webhookUrl` en el MCP para recibir POSTs directamente al agente.
+   - **Opción C (API)**: Consultar `GET /comfy_hermes/status` para obtener el último evento.
+
+4. **Procesar la respuesta**:
+   - `estado: "fin"` → éxito → continuar flujo o usar workflow nuevo
+   - `estado: "error"` → depurar, corregir workflow, reintentar
+   - `estado: "inicio"` → generar en segundo plano (esperar el siguiente evento)
+
+### Configuración de eventos
+
+Por defecto todos los eventos están activados excepto `progress_update` (spammy). Para ajustar:
+
+```bash
+POST /comfy_hermes/update_config
+{
+  "enabled": true,
+  "execution_start": true,
+  "prompt_completed": true,
+  "execution_error": true,
+  "progress_update": false,
+  "vram_cleanup_done": true,
+  "do_vram_cleanup": true
+}
+```
+
+### Configuración de webhooks remotos
+
+Para recibir señales en un servicio externo (n8n, Slack, Discord, etc.):
+
+1. Editar `config.json` en el directorio del listener:
+   ```json
+   {
+     "webhookUrl": "https://tu-servicio.com/webhook",
+     "webhookEnabled": true,
+     "webhookEvents": ["execution.start", "execution.end", "execution.success", "execution.error"]
+   }
+   ```
+
+2. O usar la API:
+   ```bash
+   POST /comfy_hermes/update_config
+   { "webhookUrl": "https://tu-servicio.com/webhook", "webhookEnabled": true }
+   ```
+
+### Liberar VRAM manualmente
+
+```bash
+POST /comfy_hermes/free_vram
+```
+
 ## Configuración en UI
 
 1. Abrir el panel de ajuste de ComfyUI (botón ⚙️ Settings).
