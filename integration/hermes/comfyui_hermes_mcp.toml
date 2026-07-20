@@ -1,0 +1,22 @@
+base_url = "http://127.0.0.1:8189"
+
+[tool]
+name = "comfyui_hermes_listener"
+description = """Interact with ComfyUI-Hermes-Listener via REST API.\n- signal_status    : get listener state and last event\n- signal_free_vram  : manually clear GPU memory\n- signal_update_cfg : enable/disable events and VRAM cleanup"""
+
+[tool.endpoint.status]
+method = "GET"
+path   = "/comfy_hermes/status"
+desc   = "Get current listener state and last captured event payload"
+
+[tool.endpoint.free_vram]
+method = "POST"
+path   = "/comfy_hermes/free_vram"
+body   = "{}"
+desc   = "Manually free VRAM on the GPU — returns mem stats"
+
+[tool.endpoint.update_cfg]
+method = "POST"
+path   = "/comfy_hermes/update_config"
+body   = "{\"enabled\": true, \"execution_start\": true, \"prompt_completed\": true, \"do_vram_cleanup\": true}"
+desc   = "Enable/disable event capture and VRAM cleanup"
