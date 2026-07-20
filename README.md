@@ -4,7 +4,9 @@ Custom node **invisible** (zero-overhead) para ComfyUI que intercepta todos los
 eventos de ejecución del motor, libera VRAM automáticamente al terminar cada
 flujo y escribe señales en disco para despertar agentes externos.
 
-100 % autónomo — no depende de n8n, webhooks remotos, ni servicios externos.
+Diseñado para funcionar **100 % en local** — sin n8n, sin webhooks remotos,
+sin servicios de terceros. Solo ComfyUI + Hermes (u otro agente) + Ollama
+(o modelo LLM local equivalente).
 
 ## Qué hace
 
@@ -18,7 +20,17 @@ flujo y escribe señales en disco para despertar agentes externos.
 
 ## Instalación
 
-### Automática (desde agente Hermes)
+### Requisitos previos
+
+Este proyecto está diseñado para funcionar **100 % en local** con el siguiente stack:
+
+- **ComfyUI** → motor de generación de imágenes
+- **Hermes Agent** → agente de IA que envía workflows y recibe señales (también válido con cualquier agente similar)
+- **Ollama** → modelo LLM local para procesamiento de texto (o cualquier LLM local equivalente)
+
+No requiere n8n, webhooks remotos, ni servicios de terceros. Todo ocurre en tu máquina.
+
+### Instalación automática (desde agente Hermes)
 
 El agente puede instalar automáticamente este listener:
 
@@ -34,7 +46,7 @@ El agente puede instalar automáticamente este listener:
    - En la UI de ComfyUI (⚙️ Settings) debe aparecer la sección *"Hermes Event Listener"*
    - O consultar la API: `GET http://127.0.0.1:8189/comfy_hermes/status`
 
-### Manual
+### Instalación manual
 
 ```bash
 cd ~/ComfyUI/custom_nodes
@@ -51,184 +63,7 @@ Este listener se basa en el diseño de **[artokun/comfyui-mcp](https://github.co
 
 Adaptamos su arquitectura para integrarlo como nodo invisible (zero-overhead) dentro de ComfyUI, capturando eventos nativos de ejecución y escribiendo señales locales para despertar agentes externos como Hermes.
 
-## Instalación y uso con agentes Hermes
-
-### Paso 1: Instalación automática (desde el agente)
-
-Cuando un agente Hermes detecta este repositorio, puede instalarlo automáticamente:
-
-1. **Clonar en la carpeta de custom_nodes de ComfyUI:**
-   ```bash
-   cd ~/ComfyUI/custom_nodes
-   git clone https://github.com/Meisoftcoltd/ComfyUI-Hermes-Listener.git
-   ```
-
-2. **Reiniciar ComfyUI** para que el listener se cargue automáticamente.
-
-3. **Verificar que está activo:**
-   - En la UI de ComfyUI (⚙️ Settings) debe aparecer la sección **"Hermes Event Listener"** con toggles para cada evento
-   - O consultar la API REST: `GET http://127.0.0.1:8189/comfy_hermes/status`
-
-### Paso 2: Escaneo inicial de nodos y modelos
-
-El agente debe ejecutar el escaneo para construir la base de datos de conocimiento:
-
-```python
-from nodes.comfyui_nodes import init_db
-
-# Escanea /object_info de ComfyUI y el filesystem de modelos
-# Crea la DB con todos los nodos instalados y modelos disponibles
-result = init_db()
-print(result)  # {"nodes": {"status": "ok", "updated": 340}, "models": {"status": "ok", "scanned": 42}}
-```
-
-### Paso 3: Enviar un workflow a ComfyUI
-
-El agente puede enviar un workflow de múltiples formas:
-
-**A) Vía MCP (recomendado):**
-```
-mcp__comfyui__run_workflow(workflow={...}, name="mi_generacion")
-```
-
-**B) Vía REST API:**
-```bash
-curl -s http://127.0.0.1:8189/prompt -H 'Content-Type: application/json' -d '{...workflow_json...}'
-```
-
-**C) Vía n8n u otro automatizador:**
-- Usar el nodo "HTTP Request" de n8n para hacer POST a `/prompt`
-
-### Paso 4: Esperar la señal de completado
-
-Una vez enviado el prompt, el agente puede entrar en reposo. Hay **3 formas** de recibir la señal:
-
-**Opción A — Archivo local (recomendado para agentes locales):**
-```python
-# Leer signal_hermes.json (escrito automáticamente por el listener)
-import json
-with open("/home/meisoft/ComfyUI-Hermes-Listener/signal_hermes.json") as f:
-    signal = json.load(f)
-# signal["estado"] puede ser "inicio", "fin" o "error"
-```
-
-**Opción B — Webhook (para agentes remotos):**
-Configurar `webhookUrl` en `config.json` del MCP o en el listener:
-```bash
-POST /comfy_hermes/update_config
-{ "webhookUrl": "https://tu-servicio.com/webhook", "webhookEnabled": true }
-```
-
-**Opción C — Consulta API:**
-```bash
-GET /comfy_hermes/status
-# Devuelve el último evento: { "enabled": true, "events": {...}, "last_event": {...} }
-```
-
-### Paso 5: Procesar la respuesta
-
-El estado en `signal_hermes.json` indica qué hacer:
-
-| estado | Acción del agente |
-|--------|-------------------|
-| `"inicio"` | El workflow comenzó — esperar el siguiente evento |
-| `"fin"` | ✅ Éxito — continuar flujo, cargar imagen de salida, usar workflow nuevo |
-| `"error"` | ❌ Fallo — depurar, corregir workflow, reintentar |
-
-```python
-if signal["estado"] == "fin":
-    # Obtener imágenes de /mnt/y/ComfyUI_Output/ o vía /view
-    pass
-elif signal["estado"] == "error":
-    # El payload de error incluye:
-    # - node_type, node_id: qué nodo falló
-    # - exception_type, exception_message: por qué falló
-    # - traceback: detalle completo
-    pass
-```
-
-### Paso 6: Aprender con cada workflow analizado
-
-El módulo `comfyui_nodes` aprende automáticamente:
-
-```python
-# Analizar un workflow antes de ejecutarlo
-from nodes.comfyui_nodes import analyze_workflow
-
-result = analyze_workflow("wf_001", workflow_json)
-# {
-#   "status": "ok" o "missing_nodes",
-#   "missing_nodes": ["NodoDesconocido"],  # nodos no encontrados en /object_info
-#   "resolved_connections": 15,
-#   "unknown_connections": [...],
-#   "total_nodes": 18
-# }
-```
-
-Cada vez que se analiza un workflow:
-- Los nodos usados se registran en `workflow_analysis`
-- Las conexiones válidas se guardan en `node_connections`
-- El uso de cada nodo se cuenta en `node_usage_stats`
-- Los nodos faltantes quedan registrados para que el agente los añada manualmente
-
-El agente puede consultar la DB en cualquier momento:
-
-```python
-# Nodos que producen LATENT (para encadenar KSampler)
-from nodes.comfyui_nodes import get_compatible_nodes
-latents = get_compatible_nodes("LATENT")
-
-# Conexiones conocidas de un nodo específico
-from nodes.comfyui_nodes import get_node_connections
-conns = get_node_connections("KSampler")
-
-# Estadísticas de toda la DB
-from nodes.comfyui_nodes import get_db_stats
-stats = get_db_stats()
-# { "nodes_registered": 340, "models_scanned": 42, "connections_registered": 120, ... }
-```
-
-### Configuración de eventos
-
-Por defecto todos los eventos están activados excepto `progress_update` (spammy). Para ajustar:
-
-```bash
-POST /comfy_hermes/update_config
-{
-  "enabled": true,
-  "execution_start": true,
-  "prompt_completed": true,
-  "execution_error": true,
-  "progress_update": false,
-  "vram_cleanup_done": true,
-  "do_vram_cleanup": true
-}
-```
-
-### Configuración de webhooks remotos
-
-Para recibir señales en un servicio externo (n8n, Slack, Discord, etc.):
-
-1. Editar `config.json` en el directorio del listener:
-   ```json
-   {
-     "webhookUrl": "https://tu-servicio.com/webhook",
-     "webhookEnabled": true,
-     "webhookEvents": ["execution.start", "execution.end", "execution.success", "execution.error"]
-   }
-   ```
-
-2. O usar la API:
-   ```bash
-   POST /comfy_hermes/update_config
-   { "webhookUrl": "https://tu-servicio.com/webhook", "webhookEnabled": true }
-   ```
-
-### Liberar VRAM manualmente
-
-```bash
-POST /comfy_hermes/free_vram
-```
+> **Nota:** El MCP se integra directamente con ComfyUI y el agente local (Hermes/Ollama), sin necesidad de n8n ni servicios externos.
 
 ## Configuración en UI
 
