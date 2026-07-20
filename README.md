@@ -18,6 +18,24 @@ flujo y escribe señales en disco para despertar agentes externos.
 
 ## Instalación
 
+### Automática (desde agente Hermes)
+
+El agente puede instalar automáticamente este listener:
+
+1. **Clonar en custom_nodes de ComfyUI:**
+   ```bash
+   cd ~/ComfyUI/custom_nodes
+   git clone https://github.com/Meisoftcoltd/ComfyUI-Hermes-Listener.git
+   ```
+
+2. **Reiniciar ComfyUI** para que cargue el listener automáticamente.
+
+3. **Verificar instalación:**
+   - En la UI de ComfyUI (⚙️ Settings) debe aparecer la sección *"Hermes Event Listener"*
+   - O consultar la API: `GET http://127.0.0.1:8189/comfy_hermes/status`
+
+### Manual
+
 ```bash
 cd ~/ComfyUI/custom_nodes
 git clone https://github.com/Meisoftcoltd/ComfyUI-Hermes-Listener.git
@@ -33,56 +51,142 @@ Este listener se basa en el diseño de **[artokun/comfyui-mcp](https://github.co
 
 Adaptamos su arquitectura para integrarlo como nodo invisible (zero-overhead) dentro de ComfyUI, capturando eventos nativos de ejecución y escribiendo señales locales para despertar agentes externos como Hermes.
 
-## Instalación y uso con Hermes
+## Instalación y uso con agentes Hermes
 
-### Para agentes Hermes (instalación automática)
+### Paso 1: Instalación automática (desde el agente)
 
 Cuando un agente Hermes detecta este repositorio, puede instalarlo automáticamente:
 
-1. **Clonar el repositorio** en la carpeta de custom nodes de ComfyUI:
+1. **Clonar en la carpeta de custom_nodes de ComfyUI:**
    ```bash
-   cd /path/to/ComfyUI/custom_nodes
+   cd ~/ComfyUI/custom_nodes
    git clone https://github.com/Meisoftcoltd/ComfyUI-Hermes-Listener.git
    ```
 
-2. **Reiniciar ComfyUI** para que se cargue el listener automáticamente.
+2. **Reiniciar ComfyUI** para que el listener se cargue automáticamente.
 
-3. **Verificar la instalación**:
-   - En la UI de ComfyUI (⚙️ Settings) debe aparecer la sección *"Hermes Event Listener"*
-   - O bien consultar la API: `GET http://127.0.0.1:8189/comfy_hermes/status`
+3. **Verificar que está activo:**
+   - En la UI de ComfyUI (⚙️ Settings) debe aparecer la sección **"Hermes Event Listener"** con toggles para cada evento
+   - O consultar la API REST: `GET http://127.0.0.1:8189/comfy_hermes/status`
 
-### Flujo de trabajo con agente Hermes
+### Paso 2: Escaneo inicial de nodos y modelos
 
-Una vez instalado, el agente puede:
+El agente debe ejecutar el escaneo para construir la base de datos de conocimiento:
 
-1. **Enviar un prompt** a ComfyUI (vía MCP, REST API o n8n):
-   ```json
-   POST /prompt
-   { "prompt": { ...workflow_json... } }
-   ```
+```python
+from nodes.comfyui_nodes import init_db
 
-2. **Ejecutar en segundo plano** — el agente entra en reposo (cero tokens) mientras ComfyUI genera.
+# Escanea /object_info de ComfyUI y el filesystem de modelos
+# Crea la DB con todos los nodos instalados y modelos disponibles
+result = init_db()
+print(result)  # {"nodes": {"status": "ok", "updated": 340}, "models": {"status": "ok", "scanned": 42}}
+```
 
-3. **Recibir la señal** cuando termine:
-   - **Opción A (recomendado)**: Leer el archivo `signal_hermes.json`:
-     ```json
-     {
-       "estado": "fin",
-       "timestamp": "2025-07-21T10:35:12+00:00",
-       "prompt_id": "abc-def-ghi",
-       "comfy_event": "executing",
-       "vram_before_gb": 18.4,
-       "vram_after_gb": 1.2,
-       "vram_freed_gb": 17.2
-     }
-     ```
-   - **Opción B (webhook)**: Configurar `webhookUrl` en el MCP para recibir POSTs directamente al agente.
-   - **Opción C (API)**: Consultar `GET /comfy_hermes/status` para obtener el último evento.
+### Paso 3: Enviar un workflow a ComfyUI
 
-4. **Procesar la respuesta**:
-   - `estado: "fin"` → éxito → continuar flujo o usar workflow nuevo
-   - `estado: "error"` → depurar, corregir workflow, reintentar
-   - `estado: "inicio"` → generar en segundo plano (esperar el siguiente evento)
+El agente puede enviar un workflow de múltiples formas:
+
+**A) Vía MCP (recomendado):**
+```
+mcp__comfyui__run_workflow(workflow={...}, name="mi_generacion")
+```
+
+**B) Vía REST API:**
+```bash
+curl -s http://127.0.0.1:8189/prompt -H 'Content-Type: application/json' -d '{...workflow_json...}'
+```
+
+**C) Vía n8n u otro automatizador:**
+- Usar el nodo "HTTP Request" de n8n para hacer POST a `/prompt`
+
+### Paso 4: Esperar la señal de completado
+
+Una vez enviado el prompt, el agente puede entrar en reposo. Hay **3 formas** de recibir la señal:
+
+**Opción A — Archivo local (recomendado para agentes locales):**
+```python
+# Leer signal_hermes.json (escrito automáticamente por el listener)
+import json
+with open("/home/meisoft/ComfyUI-Hermes-Listener/signal_hermes.json") as f:
+    signal = json.load(f)
+# signal["estado"] puede ser "inicio", "fin" o "error"
+```
+
+**Opción B — Webhook (para agentes remotos):**
+Configurar `webhookUrl` en `config.json` del MCP o en el listener:
+```bash
+POST /comfy_hermes/update_config
+{ "webhookUrl": "https://tu-servicio.com/webhook", "webhookEnabled": true }
+```
+
+**Opción C — Consulta API:**
+```bash
+GET /comfy_hermes/status
+# Devuelve el último evento: { "enabled": true, "events": {...}, "last_event": {...} }
+```
+
+### Paso 5: Procesar la respuesta
+
+El estado en `signal_hermes.json` indica qué hacer:
+
+| estado | Acción del agente |
+|--------|-------------------|
+| `"inicio"` | El workflow comenzó — esperar el siguiente evento |
+| `"fin"` | ✅ Éxito — continuar flujo, cargar imagen de salida, usar workflow nuevo |
+| `"error"` | ❌ Fallo — depurar, corregir workflow, reintentar |
+
+```python
+if signal["estado"] == "fin":
+    # Obtener imágenes de /mnt/y/ComfyUI_Output/ o vía /view
+    pass
+elif signal["estado"] == "error":
+    # El payload de error incluye:
+    # - node_type, node_id: qué nodo falló
+    # - exception_type, exception_message: por qué falló
+    # - traceback: detalle completo
+    pass
+```
+
+### Paso 6: Aprender con cada workflow analizado
+
+El módulo `comfyui_nodes` aprende automáticamente:
+
+```python
+# Analizar un workflow antes de ejecutarlo
+from nodes.comfyui_nodes import analyze_workflow
+
+result = analyze_workflow("wf_001", workflow_json)
+# {
+#   "status": "ok" o "missing_nodes",
+#   "missing_nodes": ["NodoDesconocido"],  # nodos no encontrados en /object_info
+#   "resolved_connections": 15,
+#   "unknown_connections": [...],
+#   "total_nodes": 18
+# }
+```
+
+Cada vez que se analiza un workflow:
+- Los nodos usados se registran en `workflow_analysis`
+- Las conexiones válidas se guardan en `node_connections`
+- El uso de cada nodo se cuenta en `node_usage_stats`
+- Los nodos faltantes quedan registrados para que el agente los añada manualmente
+
+El agente puede consultar la DB en cualquier momento:
+
+```python
+# Nodos que producen LATENT (para encadenar KSampler)
+from nodes.comfyui_nodes import get_compatible_nodes
+latents = get_compatible_nodes("LATENT")
+
+# Conexiones conocidas de un nodo específico
+from nodes.comfyui_nodes import get_node_connections
+conns = get_node_connections("KSampler")
+
+# Estadísticas de toda la DB
+from nodes.comfyui_nodes import get_db_stats
+stats = get_db_stats()
+# { "nodes_registered": 340, "models_scanned": 42, "connections_registered": 120, ... }
+```
 
 ### Configuración de eventos
 
@@ -170,7 +274,42 @@ Ubicación: `ComfyUI-Hermes-Listener/signal_hermes.json` (junto a `config.json`)
 El archivo se actualiza de forma atómica (`write + os.replace`) para evitar
 lecturas corruptas.
 
-## Flujo con Agente Externo
+## Aprendizaje automático de nodos
+
+El módulo `nodes/comfyui_nodes.py` permite que el agente aprenda automáticamente de workflows:
+
+1. **Escaneo inicial:** `init_db()` descarga `/object_info` de ComfyUI y escanea el filesystem de modelos
+2. **Análisis:** `analyze_workflow("id", workflow_json)` detecta nodos faltantes y conexiones válidas
+3. **Consulta:** `get_compatible_nodes("LATENT")` encuentra nodos que producen un tipo de dato
+4. **Memoria:** Cada workflow analiza, cada conexión válida se guarda, cada nodo se contabiliza
+
+```python
+from nodes.comfyui_nodes import init_db, analyze_workflow, get_db_stats
+
+# Escaneo inicial (ejecutar una sola vez al instalar)
+init_db()
+
+# Analizar un workflow antes de ejecutar
+result = analyze_workflow("wf_001", workflow_json)
+print(result)
+# {
+#   "status": "missing_nodes",
+#   "missing_nodes": ["NodoDesconocido"],
+#   "resolved_connections": 15,
+#   "total_nodes": 18
+# }
+
+# Ver estadísticas de la DB
+stats = get_db_stats()
+# { "nodes_registered": 340, "models_scanned": 42, "connections_registered": 120, ... }
+```
+
+Cada vez que el agente analiza un workflow:
+- **Nodos faltantes** → registrados en `workflow_analysis` para que el agente los añada manualmente
+- **Conexiones válidas** → guardadas en `node_connections` para consultas futuras
+- **Uso de nodos** → contabilizado en `node_usage_stats` para identificar los más usados
+
+## Flujo completo con agente Hermes
 
 ```
 Agente → POST /prompt → [prompt_id]
