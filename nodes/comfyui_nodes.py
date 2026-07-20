@@ -92,9 +92,10 @@ class ComfyuiNodesDB:
                 name TEXT,
                 description TEXT,
                 builtin INTEGER DEFAULT 0,
-                input_params TEXT,     -- JSON array de {name, type, required, optional, default}
-                output_params TEXT,    -- JSON array de {name, type, description}
-                last_scanned TEXT      -- ISO timestamp
+                python_module TEXT,       -- Repositorio/origen del nodo (ej: custom_nodes.RES4LYF, nodes, etc.)
+                input_params TEXT,        -- JSON array de {name, type, required, optional, default}
+                output_params TEXT,       -- JSON array de {name, type, description}
+                last_scanned TEXT         -- ISO timestamp
             )
         """)
 
@@ -227,13 +228,14 @@ class ComfyuiNodesDB:
 
             name = info.get("name", class_type)
             desc = info.get("description", "")
-
+            python_module = info.get("python_module", "")
+            
             c.execute("""
                 INSERT OR REPLACE INTO nodes
-                (class_type, name, description, builtin, input_params, output_params, last_scanned)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (class_type, name, description, builtin, python_module, input_params, output_params, last_scanned)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                class_type, name, desc, 1,
+                class_type, name, desc, 1, python_module,
                 json.dumps(input_list), json.dumps(output_list), now
             ))
             updated += 1
