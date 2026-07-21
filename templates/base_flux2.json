@@ -1,0 +1,107 @@
+{
+  "3": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "NEGATIVE_PROMPT_PLACEHOLDER",
+      "clip": ["3", 0]
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PROMPT_PLACEHOLDER",
+      "clip": ["3", 0]
+    }
+  },
+  "6": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": "WIDTH_PLACEHOLDER",
+      "height": "HEIGHT_PLACEHOLDER",
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux-2-klein-9b.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    }
+  },
+  "8": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "9": {
+    "class_type": "ConditioningConcat",
+    "inputs": {
+      "conditioning_from": ["4", 0],
+      "conditioning_to": ["5", 0]
+    }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["7", 0],
+      "positive": ["9", 0],
+      "negative": ["4", 0],
+      "latent_image": ["6", 0],
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "seed": "SEED_PLACEHOLDER",
+      "steps": "STEPS_PLACEHOLDER",
+      "cfg": "CFG_PLACEHOLDER",
+      "denoise": 1.0
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["10", 0],
+      "vae": ["8", 0]
+    }
+  },
+  "12": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["11", 0],
+      "filename_prefix": "ComfyUI"
+    }
+  },
+  "13": {
+    "class_type": "TelegramSuite_TelegramBot",
+    "inputs": {
+      "bot": "BOT_PLACEHOLDER",
+      "chat": "CHAT_ID_PLACEHOLDER",
+      "api_url": "https://api.telegram.org"
+    }
+  },
+  "14": {
+    "class_type": "TelegramSuite_SendImage",
+    "inputs": {
+      "IMAGE": "IMG_PLACEHOLDER",
+      "bot": ["13", 0],
+      "chat_id": ["13", 1],
+      "caption": "CAPTION_PLACEHOLDER",
+      "format": "PNG",
+      "parse_mode": "HTML",
+      "has_spoiler": false,
+      "disable_notification": false,
+      "group": false,
+      "send_as_file": false,
+      "message_thread_id": 0,
+      "file_name": "",
+      "protect_content": false,
+      "show_caption_above_media": false
+    }
+  }
+}

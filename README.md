@@ -144,6 +144,66 @@ Cada vez que el agente analiza un workflow:
 - **Conexiones válidas** → guardadas en `node_connections` para consultas futuras
 - **Uso de nodos** → contabilizado en `node_usage_stats` para identificar los más usados
 
+## Endpoint Simple: `comfyui_gen` — generación con una sola llamada
+
+Para generar imágenes sin que el agente tenga que reconstruir el grafo de nodos:
+
+```bash
+curl -X POST http://127.0.0.1:9119/api/comfyui-gen \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "cute chibi cat in anime 2000s style",
+    "width": 1024,
+    "height": 1024,
+    "steps": 30,
+    "cfg": 1.0,
+    "seed": -1,
+    "neg": "low quality, blurry, watermark",
+    "telegram": {"enabled": true}
+  }'
+```
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "task_id": "uuid",
+  "prompt_id": "abc123",
+  "prompt": "cute chibi cat...",
+  "message": "Image generated and sent to Telegram"
+}
+```
+
+### Variables disponibles
+
+| Variable | Tipo | Default | Descripción |
+|----------|------|---------|-------------|
+| `prompt` | string | `"chibi cat anime 2000s style"` | Prompt de generación |
+| `negative_prompt` | string | `"low quality, blurry, watermark, ugly"` | Negative prompt |
+| `width` | int | `1024` | Ancho de imagen |
+| `height` | int | `1024` | Alto de imagen |
+| `steps` | int | `30` | Pasos de muestreo (15-50 recomendado) |
+| `cfg` | float | `1.0` | CFG scale (fidelidad al prompt) |
+| `seed` | int | `-1` | Seed (-1 = aleatorio) |
+| `sampler` | string | `"euler"` | Sampler name |
+| `scheduler` | string | `"simple"` | Scheduler type |
+| `denoise` | float | `1.0` | Denoise strength |
+| `telegram.enabled` | bool | `true` | Enviar imagen a Telegram |
+| `telegram.bot` | string | `"Elarabot"` | Nombre del bot Telegram |
+| `telegram.chat` | string | `"meisoft"` | Chat/usuario destino |
+| `telegram.format` | string | `"png"` | Formato de imagen (PNG/WEBP/JPG) |
+
+### ¿Cómo funciona internamente?
+
+1. Carga el template base (`templates/base_flux2.json`)
+2. Sobreescribe las variables que le pases en el JSON
+3. Envía el workflow a ComfyUI (`/prompt`)
+4. Espera la finalización vía `/history/{prompt_id}` (polling inteligente)
+5. Envía la imagen a Telegram automáticamente si está habilitado
+6. Devuelve resultado final al cliente
+
+**Ventaja:** El agente no necesita conocer nodos, conexiones de grafo, `class_type`, `TelegramSuite_SendImage`, etc. Solo envía un JSON simple.
+
 ## Flujo completo con agente Hermes
 
 ```
