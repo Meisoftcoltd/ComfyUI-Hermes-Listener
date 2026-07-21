@@ -1,0 +1,125 @@
+{
+  "AcademiaSD_flux2_Klein_GGUF_v25.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Complete finetued train (Copy).json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Fish Speach TTS.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Guion variado desde video (gemini).json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Guion variado desde video.json": {
+    "error": "not a dict"
+  },
+  "Guion variado..json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "History telling (Flux2).json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "History telling.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Horoscopo amor elementos.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Horoscopo amor todos.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Predicción Horoscopo (amor) individual.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Predicción Horoscopo TODOS.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Predicción Horoscopo..json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Pulso Sefirótico.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Reporte Vibracional.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "SCAIL (telegram).json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "SCAIL.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Sinastria.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Upscaler.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "Video interpolado.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "character swapping (batch & Reactor).json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "character swapping (batch).json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "character swapping.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "multi character swaping.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "multi character swapping.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "subtitulos.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "test pitonisa.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "upscaler and subtitle.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "wanvideo_SCAIL_basic_dwpose_control_workflow.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "wanvideo_SCAIL_basic_pose_control_workflow.json": {
+    "node_types": [],
+    "node_details": {}
+  },
+  "wanvideo_SCAIL_pose+and+camera_control_workflow.json": {
+    "node_types": [],
+    "node_details": {}
+  }
+}
