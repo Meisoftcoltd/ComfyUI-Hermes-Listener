@@ -1,0 +1,22 @@
+[Unit]
+Description=ComfyUI Webhook Server - Auto-send files to Telegram
+After=network.target comfyui.service
+Wants=comfyui.service
+
+[Service]
+Type=simple
+User=meisoft
+Group=meisoft
+WorkingDirectory=/home/meisoft/ComfyUI-Hermes-Listener
+Environment=PATH=/usr/bin:/usr/local/bin:/usr/local/cuda/bin
+Environment=COMFYUI_URL=http://127.0.0.1:8189
+Environment=WEBHOOK_PORT=9119
+ExecStart=/usr/bin/python3 /home/meisoft/ComfyUI-Hermes-Listener/webhook_server.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=comfyui-gen
+
+[Install]
+WantedBy=multi-user.target
