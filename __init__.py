@@ -51,16 +51,19 @@ _router = _get_router()
 try:
     if hasattr(_server, 'add_on_prompt_handler'):
         # ComfyUI 0.27+: API oficial add_on_prompt_handler
-        def _on_prompt_handler(event, data, sid=None):
+        # Signature: (data, sid=None) — data is the event dict with full info
+        def _on_prompt_handler(data, sid=None):
             try:
-                listener.on_event(event, data)
+                # Extract event type from the data dict if present
+                event_type = data.get('event_type', 'prompt') if isinstance(data, dict) else 'prompt'
+                listener.on_event(event_type, data)
                 # Debug webhook
                 import json
-                webhook_data = json.dumps({"event": event, "status": "ok" if event in ["execution_start", "prompt_completed", "execution_error"] else "other"})
+                webhook_data = json.dumps({"event": event_type, "status": "ok" if event_type in ["execution_start", "prompt_completed", "execution_error"] else "other"})
                 print(f"[Hermes-Listener] Webhook enviado a hermes: {webhook_data}")
             except Exception:
                 import traceback
-                print(f"[Hermes-Listener] Error en evento {event}: {traceback.format_exc()}")
+                print(f"[Hermes-Listener] Error en evento: {traceback.format_exc()}")
         _server.add_on_prompt_handler(_on_prompt_handler)
         print("[Hermes-Listener] Usando add_on_prompt_handler (ComfyUI 0.27+)")
     else:
